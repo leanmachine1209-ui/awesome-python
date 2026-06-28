@@ -1,0 +1,6 @@
+farm,asset,asset_type,date,category,metric,value,notes
+Green Acres,North Herd,herd,2026-06-25,health,milk_yield_l,1820,Yield steady
+Green Acres,North Herd,herd,2026-06-26,health,milk_yield_l,1610,"Cow #42 looks lame, may need vet"
+Green Acres,South Field,crop,2026-06-26,agronomy,soil_moisture_pct,18,"Soil getting dry, irrigation low"
+Green Acres,South Field,crop,2026-06-27,agronomy,soil_moisture_pct,15,Drought stress visible
+Green Acres,Feed Store,other,2026-06-27,supplies,feed_tonnes,2,"Running low on feed, reorder soon"

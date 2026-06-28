@@ -1,0 +1,6 @@
+[2026-06-26, 7:32 AM] Alice: Morning all, North Herd cow #42 is limping badly, think we need the vet out
+[2026-06-26, 7:35 AM] Bob: Agreed, I'll be in South Field most of the day
+2026/06/26, 16:10 - Bob: South Field irrigation line is leaking again, water pressure low
+[2026-06-27, 8:01 AM] Alice: Feed Store is nearly empty, can someone order more feed before the weekend?
+[2026-06-27, 8:05 AM] Carol: On it, will place the feed order today
+[2026-06-27, 6:22 PM] Bob: Fence on the north boundary is loose, cattle could get out on the road
