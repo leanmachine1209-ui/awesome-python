@@ -8,16 +8,19 @@ from __future__ import annotations
 
 import streamlit as st
 
-from .db import init_db
-from .ingest import parse_partner_csv, parse_whatsapp_export
-from .models import ActionStatus
-from .service import (
+# Absolute imports so the file works when launched directly via
+# `streamlit run agtech_ops/dashboard.py` (Streamlit runs it as a script, not
+# as part of the package, so relative imports would fail).
+from agtech_ops.db import init_db
+from agtech_ops.ingest import parse_partner_csv, parse_whatsapp_export
+from agtech_ops.models import ActionStatus
+from agtech_ops.service import (
     known_asset_names,
     list_action_items,
     store_events,
     summarize_and_store,
 )
-from .summarize import get_summarizer
+from agtech_ops.summarize import get_summarizer
 
 
 def main() -> None:
