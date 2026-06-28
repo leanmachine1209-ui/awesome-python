@@ -1,0 +1,7 @@
+{
+  "records": [
+    {"farm": "Green Acres", "asset": "North Herd", "asset_type": "herd", "date": "2026-06-28", "category": "health", "metric": "milk_yield_l", "value": 1655, "notes": "Recovering after vet visit"},
+    {"farm": "Green Acres", "asset": "Feed Store", "asset_type": "other", "date": "2026-06-28", "category": "supplies", "metric": "feed_tonnes", "value": 1, "notes": "Critically low, order not yet delivered"},
+    {"farm": "Green Acres", "asset": "South Field", "asset_type": "crop", "date": "2026-06-28", "category": "agronomy", "metric": "soil_moisture_pct", "value": 13, "notes": "Still dry, irrigation repair pending"}
+  ]
+}

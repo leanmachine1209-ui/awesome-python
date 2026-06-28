@@ -13,11 +13,18 @@ end-to-end with zero external services or API keys required.
 
 ## What works today (Sprint 1)
 
-- **Ingest**
-  - Partner / Dropbox **CSV** uploads, with flexible/aliased column names and
-    per-row error reporting (one bad row never aborts the file).
-  - **WhatsApp** chat exports (both `[date, time] Name:` and `date, time - Name:`
-    formats, multi-line messages supported).
+- **Ingest a range of files** — one intake that dispatches on file type:
+  - **Tabular** (carry their own farm/asset columns): `.csv`, `.tsv`,
+    `.xlsx`/`.xls`, `.json`. Flexible/aliased column names, per-row error
+    reporting (one bad row never aborts the file), extra columns preserved.
+  - **Free text** (converted into data): `.txt`, `.md`, `.log`, `.pdf`,
+    `.docx`. Each paragraph becomes an event; an optional leading date is used
+    as its timestamp; the asset is inferred from known asset names.
+  - **WhatsApp** chat exports are auto-detected (both `[date, time] Name:` and
+    `date, time - Name:` formats, multi-line messages supported).
+- **Compile & aggregate** — a cross-source roll-up: totals, per-source and
+  per-asset counts, and numeric metric **time series** assembled from every
+  file (e.g. milk yield from a CSV + a JSON partner feed on one chart).
 - **Contextualize** — every record is resolved onto a canonical model so data
   from different sources lines up on the same thing:
 
@@ -42,16 +49,23 @@ end-to-end with zero external services or API keys required.
 ```bash
 cd agtech-ops
 python3 -m venv .venv && . .venv/bin/activate   # or use your environment
-pip install -e ".[dev]"        # core + test deps
+pip install -e ".[dev,files]"        # core + tests + Excel/PDF/Word support
 # optional: pip install -e ".[ai,dashboard]"
 
 # Run the API
 uvicorn agtech_ops.api:app --reload
 
-# Try it with the bundled sample data
-curl -F "file=@sample_data/herd.csv" http://localhost:8000/ingest/csv
-curl -F "text=$(cat sample_data/whatsapp_export.txt)" -F "farm=Green Acres" \
-     http://localhost:8000/ingest/whatsapp
+# Ingest a range of files at once
+curl -F "files=@sample_data/herd.csv" \
+     -F "files=@sample_data/partner_feed.json" \
+     -F "files=@sample_data/field_notes.txt" \
+     -F "farm=Green Acres" \
+     http://localhost:8000/ingest/files
+
+# Compile / aggregate everything ingested
+curl http://localhost:8000/report
+
+# Summaries + action items
 curl -X POST "http://localhost:8000/summarize"
 curl http://localhost:8000/action-items
 
