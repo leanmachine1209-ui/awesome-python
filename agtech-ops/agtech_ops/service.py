@@ -8,11 +8,22 @@ from __future__ import annotations
 
 import datetime as dt
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from .db import get_or_create_asset, get_or_create_farm, session_scope
+from .ingest import ingest_file
 from .models import ActionItem, ActionStatus, Asset, Event, Farm, Priority, Source
-from .schemas import ActionItemOut, EventIn, IngestResult, SummaryResult
+from .schemas import (
+    ActionItemOut,
+    AggregateReport,
+    AssetSummary,
+    EventIn,
+    FileIngestResult,
+    IngestResult,
+    MetricPoint,
+    SummaryResult,
+)
 from .summarize import get_summarizer
 
 
@@ -52,6 +63,131 @@ def store_events(events: list[EventIn], errors: list[str] | None = None) -> Inge
         assets=sorted(assets),
         errors=errors,
     )
+
+
+def ingest_files(
+    files: list[tuple[str, bytes]],
+    *,
+    farm: str | None = None,
+    default_asset: str = "General",
+) -> FileIngestResult:
+    """Ingest a batch of heterogeneous files and compile the results.
+
+    ``files`` is a list of ``(filename, bytes)``. Tabular files self-describe
+    their farm/asset; free-text files use the supplied ``farm`` for context.
+    """
+    per_file: list[dict] = []
+    all_errors: list[str] = []
+    farms: set[str] = set()
+    assets: set[str] = set()
+    total = 0
+
+    for filename, data in files:
+        known = known_asset_names(farm)
+        events, errors = ingest_file(
+            filename, data, farm=farm, known_assets=known, default_asset=default_asset
+        )
+        if events:
+            res = store_events(events)
+            farms.update(res.farms)
+            assets.update(res.assets)
+            total += res.events_ingested
+            per_file.append(
+                {"file": filename, "events": res.events_ingested, "errors": errors}
+            )
+        else:
+            per_file.append({"file": filename, "events": 0, "errors": errors})
+        all_errors.extend(f"{filename}: {e}" for e in errors)
+
+    return FileIngestResult(
+        files_processed=len(files),
+        events_ingested=total,
+        per_file=per_file,
+        farms=sorted(farms),
+        assets=sorted(assets),
+        errors=all_errors,
+    )
+
+
+def aggregate(farm: str | None = None) -> AggregateReport:
+    """Compile a cross-source roll-up of everything ingested."""
+    with session_scope() as session:
+        base = (
+            session.query(Event)
+            .join(Asset)
+            .join(Farm)
+        )
+        if farm:
+            base = base.filter(Farm.name == farm)
+
+        events = base.options(
+            joinedload(Event.asset).joinedload(Asset.farm)
+        ).all()
+
+        total_events = len(events)
+        farms = {e.asset.farm.name for e in events if e.asset and e.asset.farm}
+        assets = {(e.asset.farm.name, e.asset.name) for e in events if e.asset}
+
+        by_source: dict[str, int] = {}
+        per_asset: dict[tuple[str, str], dict] = {}
+        metric_series: dict[str, list[MetricPoint]] = {}
+        min_dt = max_dt = None
+
+        for e in events:
+            by_source[e.source.value] = by_source.get(e.source.value, 0) + 1
+            min_dt = e.occurred_at if min_dt is None else min(min_dt, e.occurred_at)
+            max_dt = e.occurred_at if max_dt is None else max(max_dt, e.occurred_at)
+
+            if e.asset:
+                key = (e.asset.farm.name, e.asset.name)
+                slot = per_asset.setdefault(
+                    key,
+                    {
+                        "farm": e.asset.farm.name,
+                        "asset": e.asset.name,
+                        "asset_type": e.asset.type.value,
+                        "events": 0,
+                        "last_seen": None,
+                    },
+                )
+                slot["events"] += 1
+                if slot["last_seen"] is None or e.occurred_at > slot["last_seen"]:
+                    slot["last_seen"] = e.occurred_at
+
+            if e.metric and e.value is not None:
+                metric_series.setdefault(e.metric, []).append(
+                    MetricPoint(
+                        asset=e.asset.name if e.asset else "?",
+                        occurred_at=e.occurred_at,
+                        value=e.value,
+                    )
+                )
+
+        for series in metric_series.values():
+            series.sort(key=lambda p: p.occurred_at)
+
+        open_items = (
+            session.query(func.count(ActionItem.id))
+            .filter(ActionItem.status == ActionStatus.open)
+            .scalar()
+        )
+
+        by_asset = sorted(
+            (AssetSummary(**v) for v in per_asset.values()),
+            key=lambda a: a.events,
+            reverse=True,
+        )
+
+        return AggregateReport(
+            total_events=total_events,
+            total_farms=len(farms),
+            total_assets=len(assets),
+            open_action_items=int(open_items or 0),
+            by_source=by_source,
+            by_asset=by_asset,
+            metric_series=metric_series,
+            date_range=[min_dt, max_dt],
+        )
 
 
 def known_asset_names(farm: str | None = None) -> list[str]:

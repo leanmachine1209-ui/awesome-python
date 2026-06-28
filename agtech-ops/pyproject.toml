@@ -14,6 +14,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Multi-format file ingestion (Excel, PDF, Word). Plain text/CSV/TSV/JSON work
+# without these; the ingestors degrade gracefully with a helpful message.
+files = [
+    "openpyxl>=3.1",
+    "pypdf>=4.0",
+    "python-docx>=1.1",
+]
 # AI summarization. Without these installed (or without an API key), the app
 # transparently falls back to the deterministic rule-based summarizer.
 ai = [
@@ -28,6 +35,9 @@ dashboard = [
 dev = [
     "pytest>=8.0",
     "httpx>=0.27",
+    "openpyxl>=3.1",
+    "pypdf>=4.0",
+    "python-docx>=1.1",
 ]
 
 [build-system]

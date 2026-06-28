@@ -53,3 +53,29 @@ def test_csv_with_no_valid_columns_returns_422():
     files = {"file": ("bad.csv", io.BytesIO(b"a,b\n1,2\n"), "text/csv")}
     r = client.post("/ingest/csv", files=files)
     assert r.status_code == 422
+
+
+def test_ingest_files_multi_then_report():
+    csv = b"farm,asset,date,metric,value\nGreen Acres,North Herd,2026-06-26,milk_yield_l,1610\n"
+    notes = b"2026-06-27 South Field irrigation is leaking, needs repair."
+    files = [
+        ("files", ("herd.csv", io.BytesIO(csv), "text/csv")),
+        ("files", ("notes.txt", io.BytesIO(notes), "text/plain")),
+    ]
+    r = client.post("/ingest/files", files=files, data={"farm": "Green Acres"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["files_processed"] == 2
+    assert body["events_ingested"] == 2
+
+    r = client.get("/report")
+    assert r.status_code == 200, r.text
+    report = r.json()
+    assert report["total_events"] == 2
+    assert "milk_yield_l" in report["metric_series"]
+
+
+def test_health_lists_supported_files():
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert ".pdf" in r.json()["supported_files"]

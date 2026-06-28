@@ -74,22 +74,38 @@ def parse_partner_csv(
     data: str | bytes,
     *,
     source: Source = Source.csv_partner,
+    sep: str | None = None,
 ) -> tuple[list[EventIn], list[str]]:
-    """Return ``(events, errors)`` parsed from CSV ``data``."""
+    """Return ``(events, errors)`` parsed from CSV/TSV ``data``."""
 
     if isinstance(data, bytes):
         buffer: io.StringIO | io.BytesIO = io.BytesIO(data)
     else:
         buffer = io.StringIO(data)
 
-    errors: list[str] = []
     try:
-        df = pd.read_csv(buffer)
+        read_kwargs = {"sep": sep} if sep is not None else {}
+        df = pd.read_csv(buffer, **read_kwargs)
     except Exception as exc:  # noqa: BLE001 - surfaced to caller
         return [], [f"could not read CSV: {exc}"]
 
-    if df.empty:
-        return [], ["CSV contained no rows"]
+    return dataframe_to_events(df, source=source)
+
+
+def dataframe_to_events(
+    df: pd.DataFrame,
+    *,
+    source: Source = Source.csv_partner,
+) -> tuple[list[EventIn], list[str]]:
+    """Convert an already-loaded tabular frame into normalized events.
+
+    Shared by the CSV, Excel and JSON ingestors so column aliasing and row
+    coercion behave identically regardless of the original file format.
+    """
+
+    errors: list[str] = []
+    if df is None or df.empty:
+        return [], ["no rows found"]
 
     df = _normalize_columns(df)
 

@@ -9,10 +9,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 
 from .db import init_db
-from .ingest import parse_partner_csv, parse_whatsapp_export
+from .ingest import SUPPORTED_EXTENSIONS, parse_partner_csv, parse_whatsapp_export
 from .models import ActionStatus
-from .schemas import IngestResult, SummaryResult
+from .schemas import AggregateReport, FileIngestResult, IngestResult, SummaryResult
 from .service import (
+    aggregate,
+    ingest_files,
     known_asset_names,
     list_action_items,
     store_events,
@@ -39,7 +41,35 @@ app = FastAPI(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "summarizer": get_summarizer().name}
+    return {
+        "status": "ok",
+        "summarizer": get_summarizer().name,
+        "supported_files": sorted(SUPPORTED_EXTENSIONS),
+    }
+
+
+@app.post("/ingest/files", response_model=FileIngestResult)
+async def ingest_files_endpoint(
+    files: list[UploadFile] = File(...),
+    farm: str | None = Form(None),
+    default_asset: str = Form("General"),
+) -> FileIngestResult:
+    """Ingest a range of files (CSV/TSV/Excel/JSON/TXT/MD/LOG/PDF/DOCX).
+
+    Tabular files carry their own farm/asset columns; free-text files use the
+    optional ``farm`` for context resolution.
+    """
+    payload = [(f.filename or "upload", await f.read()) for f in files]
+    result = ingest_files(payload, farm=farm, default_asset=default_asset)
+    if result.events_ingested == 0 and result.errors:
+        raise HTTPException(status_code=422, detail=result.errors)
+    return result
+
+
+@app.get("/report", response_model=AggregateReport)
+def report(farm: str | None = Query(None)) -> AggregateReport:
+    """Compiled, aggregated view across all ingested sources."""
+    return aggregate(farm=farm)
 
 
 @app.post("/ingest/csv", response_model=IngestResult)

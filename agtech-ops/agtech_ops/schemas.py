@@ -55,3 +55,41 @@ class IngestResult(BaseModel):
     farms: list[str] = Field(default_factory=list)
     assets: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
+
+
+class FileIngestResult(BaseModel):
+    """Per-file outcome plus an aggregate roll-up for a multi-file upload."""
+
+    files_processed: int
+    events_ingested: int
+    per_file: list[dict] = Field(default_factory=list)
+    farms: list[str] = Field(default_factory=list)
+    assets: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+
+
+class AssetSummary(BaseModel):
+    farm: str
+    asset: str
+    asset_type: str
+    events: int
+    last_seen: dt.datetime | None = None
+
+
+class MetricPoint(BaseModel):
+    asset: str
+    occurred_at: dt.datetime
+    value: float
+
+
+class AggregateReport(BaseModel):
+    """Compiled, cross-source view of everything ingested."""
+
+    total_events: int
+    total_farms: int
+    total_assets: int
+    open_action_items: int
+    by_source: dict[str, int] = Field(default_factory=dict)
+    by_asset: list[AssetSummary] = Field(default_factory=list)
+    metric_series: dict[str, list[MetricPoint]] = Field(default_factory=dict)
+    date_range: list[dt.datetime | None] = Field(default_factory=list)
