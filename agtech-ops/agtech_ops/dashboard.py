@@ -7,7 +7,6 @@ Requires the 'dashboard' extra (streamlit, plotly).
 from __future__ import annotations
 
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
 # Absolute imports so the file works when launched directly via
@@ -85,17 +84,6 @@ def main() -> None:
         )
         st.bar_chart(src_df.set_index("source"))
 
-    # --- Aggregated metric trends ---
-    if report.metric_series:
-        st.subheader("Aggregated metrics over time")
-        metric = st.selectbox("Metric", sorted(report.metric_series))
-        pts = report.metric_series[metric]
-        mdf = pd.DataFrame(
-            [{"date": p.occurred_at, "value": p.value, "asset": p.asset} for p in pts]
-        )
-        fig = px.line(mdf, x="date", y="value", color="asset", markers=True)
-        st.plotly_chart(fig, use_container_width=True)
-
     # --- Media metadata & tags (workflow signals) ---
     if report.top_tags:
         st.subheader("Media metadata & tags (workflow signals)")
@@ -107,13 +95,6 @@ def main() -> None:
             [{"tag": t.tag, "count": t.count} for t in report.top_tags]
         ).set_index("tag")
         st.bar_chart(tdf)
-
-    # --- Assets table ---
-    if report.by_asset:
-        with st.expander("Assets compiled across sources"):
-            st.dataframe(
-                [a.model_dump() for a in report.by_asset], use_container_width=True
-            )
 
     st.divider()
     st.subheader(f"Action-item log · built by {agent_name()}")
@@ -147,6 +128,22 @@ def main() -> None:
         )
     else:
         st.info("Log is empty. Ingest data, then run the agent.")
+
+    # --- Aggregated metric trends (native charts; one per metric) ---
+    if report.metric_series:
+        st.divider()
+        st.subheader("Aggregated metrics over time")
+        for metric in sorted(report.metric_series):
+            pts = report.metric_series[metric]
+            mdf = pd.DataFrame(
+                [{"date": p.occurred_at, "value": p.value, "asset": p.asset} for p in pts]
+            )
+            # Pivot so each asset is its own line; native chart avoids heavy deps.
+            wide = mdf.pivot_table(
+                index="date", columns="asset", values="value", aggfunc="mean"
+            )
+            st.caption(metric)
+            st.line_chart(wide)
 
 
 if __name__ == "__main__":

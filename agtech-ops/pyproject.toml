@@ -27,10 +27,9 @@ ai = [
     "litellm>=1.40",
     "instructor>=1.3",
 ]
-# Operator-facing dashboard.
+# Operator-facing dashboard (uses Streamlit's native charts).
 dashboard = [
     "streamlit>=1.34",
-    "plotly>=5.20",
 ]
 dev = [
     "pytest>=8.0",
