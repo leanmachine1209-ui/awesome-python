@@ -1,0 +1,43 @@
+# Render blueprint for the AgTech Ops Hub dashboard.
+# Deploy: New > Blueprint, point at this repo, set Root Directory to "agtech-ops".
+#
+# This stands up the Streamlit dashboard as a web service. The FastAPI ingest
+# API can be added as a second service later (see commented block below).
+services:
+  - type: web
+    name: agtech-ops-hub
+    runtime: python
+    rootDir: agtech-ops
+    plan: free
+    buildCommand: pip install -e ".[files,dashboard]"
+    # Render injects $PORT; Streamlit must bind it on 0.0.0.0 and run headless.
+    startCommand: >-
+      streamlit run agtech_ops/dashboard.py
+      --server.port $PORT
+      --server.address 0.0.0.0
+      --server.headless true
+      --browser.gatherUsageStats false
+    healthCheckPath: /_stcore/health
+    envVars:
+      # Default summarizer is offline/rule-based so the app works with no keys.
+      - key: AGTECH_FORCE_RULE_BASED
+        value: "1"
+      # SQLite on the free plan is ephemeral (resets on redeploy). For
+      # persistence, attach a paid disk and point this at it, or use Postgres:
+      #   AGTECH_DATABASE_URL = postgresql+psycopg://USER:PASS@HOST/DB
+      - key: AGTECH_DATABASE_URL
+        value: sqlite:////tmp/agtech_ops.db
+      # To enable the LLM summarizer instead, set AGTECH_FORCE_RULE_BASED=0,
+      # add the 'ai' extra to buildCommand, and provide a key below (as a secret):
+      # - key: OPENAI_API_KEY
+      #   sync: false
+
+  # Optional: expose the ingest API as its own service.
+  # - type: web
+  #   name: agtech-ops-api
+  #   runtime: python
+  #   rootDir: agtech-ops
+  #   plan: free
+  #   buildCommand: pip install -e ".[files]"
+  #   startCommand: uvicorn agtech_ops.api:app --host 0.0.0.0 --port $PORT
+  #   healthCheckPath: /health
