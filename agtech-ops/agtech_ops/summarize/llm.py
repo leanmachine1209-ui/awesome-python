@@ -13,17 +13,18 @@ from .base import render_events
 
 _SYSTEM = (
     "You are an operations analyst for a farming business. You receive a log of "
-    "events drawn from partner CSV uploads, shared Dropbox spreadsheets, and "
-    "WhatsApp messages between farm staff. Produce a concise situational summary, "
-    "key bullet points, and concrete action items for the ops team. Each action "
-    "item must be specific, name an owner when one is implied by the message "
-    "author, set a sensible priority, and reference the relevant asset. Only use "
-    "information present in the events."
+    "events drawn from partner CSV uploads, shared Dropbox spreadsheets, WhatsApp "
+    "messages between farm staff, and tags from video/camera clips. Produce a "
+    "concise situational summary, key bullet points, and concrete action items "
+    "for the ops team. Each action item must be specific, name an owner when one "
+    "is implied by the message author, set a sensible priority, reference the "
+    "relevant asset, and include a short 'rationale' citing the evidence (e.g. a "
+    "clip tag or a message phrase). Only use information present in the events."
 )
 
 
 class LLMSummarizer:
-    name = "llm"
+    name = "haiku-agent"
 
     def __init__(self, model: str):
         import instructor

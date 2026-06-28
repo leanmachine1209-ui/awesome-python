@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 
+from .agent import action_log, agent_name, build_action_log
 from .db import init_db
 from .ingest import SUPPORTED_EXTENSIONS, parse_partner_csv, parse_whatsapp_export
 from .models import ActionStatus
@@ -113,3 +114,24 @@ def summarize(
 @app.get("/action-items")
 def action_items(status: ActionStatus | None = Query(ActionStatus.open)) -> list[dict]:
     return list_action_items(status=status)
+
+
+@app.get("/agent")
+def agent_info() -> dict:
+    """Which action-item-log agent is active (haiku-agent or rule_based)."""
+    return {"agent": agent_name()}
+
+
+@app.post("/agent/run", response_model=SummaryResult)
+def agent_run(
+    farm: str | None = Query(None),
+    since_days: int | None = Query(None, ge=0),
+) -> SummaryResult:
+    """Run the agent over incoming data and append to the action-item log."""
+    return build_action_log(farm=farm, since_days=since_days)
+
+
+@app.get("/agent/log")
+def agent_log(limit: int | None = Query(None, ge=1)) -> list[dict]:
+    """Read the current action-item log (newest first)."""
+    return action_log(limit=limit)

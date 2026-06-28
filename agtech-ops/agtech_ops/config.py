@@ -24,9 +24,10 @@ class Settings:
     # provision for a first run.
     database_url: str = os.getenv("AGTECH_DATABASE_URL", "sqlite:///agtech_ops.db")
 
-    # LLM model string understood by LiteLLM (e.g. "gpt-4o-mini",
-    # "anthropic/claude-3-5-sonnet"). Only used when AI extras + a key exist.
-    llm_model: str = os.getenv("AGTECH_LLM_MODEL", "gpt-4o-mini")
+    # LLM model string understood by LiteLLM. Defaults to a small, cheap model
+    # (Claude Haiku) for the action-item-log agent. Only used when AI extras +
+    # a key exist; otherwise the deterministic rule-based agent runs.
+    llm_model: str = os.getenv("AGTECH_LLM_MODEL", "anthropic/claude-3-5-haiku-latest")
 
     # Force the deterministic summarizer even if AI deps/keys are available.
     # Handy for tests and offline demos.

@@ -22,9 +22,17 @@ end-to-end with zero external services or API keys required.
     as its timestamp; the asset is inferred from known asset names.
   - **WhatsApp** chat exports are auto-detected (both `[date, time] Name:` and
     `date, time - Name:` formats, multi-line messages supported).
+- **Video/clip metadata & tags** — clip metadata (from an upstream vision model,
+  e.g. YOLO on a Jetson) with `tags`, `duration`, `camera` columns is
+  auto-detected and ingested as `media` events. Tags become **workflow signals**
+  and feed action generation (a clip tagged `lame` raises a vet task).
 - **Compile & aggregate** — a cross-source roll-up: totals, per-source and
-  per-asset counts, and numeric metric **time series** assembled from every
-  file (e.g. milk yield from a CSV + a JSON partner feed on one chart).
+  per-asset counts, **top tags**, clip counts, and numeric metric **time series**
+  assembled from every file (e.g. milk yield from a CSV + a JSON partner feed).
+- **AI action-item log agent** — a "Haiku agent" turns incoming bridge data
+  (messages, files, clip tags) into an append-only, prioritized action-item log,
+  each entry carrying a **rationale** and the agent that produced it. Uses Claude
+  Haiku via LiteLLM when a key is set, with a deterministic offline fallback.
 - **Contextualize** — every record is resolved onto a canonical model so data
   from different sources lines up on the same thing:
 
@@ -55,19 +63,20 @@ pip install -e ".[dev,files]"        # core + tests + Excel/PDF/Word support
 # Run the API
 uvicorn agtech_ops.api:app --reload
 
-# Ingest a range of files at once
+# Ingest a range of files at once (incl. video/clip tag metadata)
 curl -F "files=@sample_data/herd.csv" \
      -F "files=@sample_data/partner_feed.json" \
      -F "files=@sample_data/field_notes.txt" \
+     -F "files=@sample_data/clips.json" \
      -F "farm=Green Acres" \
      http://localhost:8000/ingest/files
 
-# Compile / aggregate everything ingested
+# Compile / aggregate everything ingested (incl. top tags + clip counts)
 curl http://localhost:8000/report
 
-# Summaries + action items
-curl -X POST "http://localhost:8000/summarize"
-curl http://localhost:8000/action-items
+# Run the action-item-log agent, then read the log
+curl -X POST "http://localhost:8000/agent/run"
+curl http://localhost:8000/agent/log
 
 # Or the dashboard (needs the 'dashboard' extra)
 streamlit run agtech_ops/dashboard.py
@@ -86,9 +95,9 @@ All optional; sensible defaults mean it runs with nothing set.
 | Env var | Default | Purpose |
 |---|---|---|
 | `AGTECH_DATABASE_URL` | `sqlite:///agtech_ops.db` | Any SQLAlchemy URL (e.g. Postgres). |
-| `AGTECH_LLM_MODEL` | `gpt-4o-mini` | LiteLLM model id for the AI backend. |
-| `AGTECH_FORCE_RULE_BASED` | `false` | Force the offline summarizer. |
-| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / … | – | Enables the LLM backend. |
+| `AGTECH_LLM_MODEL` | `anthropic/claude-3-5-haiku-latest` | LiteLLM model id for the agent. |
+| `AGTECH_FORCE_RULE_BASED` | `false` | Force the offline agent. |
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / … | – | Enables the Haiku/LLM agent. |
 
 ## Architecture (mapped to the awesome-python catalog)
 

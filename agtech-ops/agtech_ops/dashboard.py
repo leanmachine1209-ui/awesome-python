@@ -13,18 +13,15 @@ import streamlit as st
 # Absolute imports so the file works when launched directly via
 # `streamlit run agtech_ops/dashboard.py` (Streamlit runs it as a script, not
 # as part of the package, so relative imports would fail).
+from agtech_ops.agent import action_log, agent_name, build_action_log
 from agtech_ops.db import init_db
 from agtech_ops.ingest import SUPPORTED_EXTENSIONS, parse_whatsapp_export
-from agtech_ops.models import ActionStatus
 from agtech_ops.service import (
     aggregate,
     ingest_files,
     known_asset_names,
-    list_action_items,
     store_events,
-    summarize_and_store,
 )
-from agtech_ops.summarize import get_summarizer
 
 
 def main() -> None:
@@ -32,8 +29,8 @@ def main() -> None:
     st.set_page_config(page_title="AgTech Ops Hub", layout="wide")
     st.title("AgTech Ops Hub")
     st.caption(
-        f"Compile & aggregate multi-source farm data · summarizer: "
-        f"**{get_summarizer().name}**"
+        f"Compile & aggregate multi-source farm data · action-item agent: "
+        f"**{agent_name()}**"
     )
 
     farm_default = "Green Acres"
@@ -75,11 +72,12 @@ def main() -> None:
 
     # --- Compiled overview ---
     st.subheader("Compiled overview")
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Events", report.total_events)
     c2.metric("Assets", report.total_assets)
-    c3.metric("Farms", report.total_farms)
-    c4.metric("Open actions", report.open_action_items)
+    c3.metric("Clips", report.media_clips)
+    c4.metric("Farms", report.total_farms)
+    c5.metric("Open actions", report.open_action_items)
 
     if report.by_source:
         src_df = pd.DataFrame(
@@ -98,6 +96,18 @@ def main() -> None:
         fig = px.line(mdf, x="date", y="value", color="asset", markers=True)
         st.plotly_chart(fig, use_container_width=True)
 
+    # --- Media metadata & tags (workflow signals) ---
+    if report.top_tags:
+        st.subheader("Media metadata & tags (workflow signals)")
+        st.caption(
+            "Tags extracted from video/camera clips — the most frequent tags "
+            "indicate where the workflow needs attention."
+        )
+        tdf = pd.DataFrame(
+            [{"tag": t.tag, "count": t.count} for t in report.top_tags]
+        ).set_index("tag")
+        st.bar_chart(tdf)
+
     # --- Assets table ---
     if report.by_asset:
         with st.expander("Assets compiled across sources"):
@@ -106,22 +116,37 @@ def main() -> None:
             )
 
     st.divider()
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        st.subheader("Summary")
-        if st.button("Generate summary + action items"):
-            result = summarize_and_store()
-            st.write(result.summary)
-            for p in result.points:
-                st.markdown(f"- {p}")
+    st.subheader(f"Action-item log · built by {agent_name()}")
+    st.caption(
+        "An AI agent (Claude Haiku when a key is set, deterministic rules "
+        "otherwise) turns incoming bridge data into a logged, prioritized "
+        "action list with a rationale for each item."
+    )
+    if st.button("Run agent on incoming data", type="primary"):
+        result = build_action_log()
+        st.write(result.summary)
+        for p in result.points:
+            st.markdown(f"- {p}")
 
-    with col2:
-        st.subheader("Open action items")
-        items = list_action_items(status=ActionStatus.open)
-        if items:
-            st.dataframe(items, use_container_width=True)
-        else:
-            st.info("No open action items yet. Ingest data and generate a summary.")
+    log = action_log()
+    if log:
+        st.dataframe(
+            [
+                {
+                    "priority": a["priority"],
+                    "task": a["task"],
+                    "owner": a["owner"],
+                    "due": a["due"],
+                    "rationale": a["rationale"],
+                    "by": a["created_by"],
+                    "logged": a["logged_at"],
+                }
+                for a in log
+            ],
+            use_container_width=True,
+        )
+    else:
+        st.info("Log is empty. Ingest data, then run the agent.")
 
 
 if __name__ == "__main__":

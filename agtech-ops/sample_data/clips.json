@@ -1,0 +1,7 @@
+[
+  {"farm": "Green Acres", "asset": "North Herd", "date": "2026-06-28T06:12:00", "camera": "barn-cam-1", "duration_s": 18, "tags": "cow, lame, limping", "notes": "Auto-detected gait anomaly on cow #42"},
+  {"farm": "Green Acres", "asset": "North Herd", "date": "2026-06-28T06:40:00", "camera": "barn-cam-1", "duration_s": 9, "tags": "cow, feeding, normal"},
+  {"farm": "Green Acres", "asset": "South Field", "date": "2026-06-28T11:03:00", "camera": "gate-cam-3", "duration_s": 12, "tags": "fence, open, gate"},
+  {"farm": "Green Acres", "asset": "South Field", "date": "2026-06-28T14:21:00", "camera": "field-cam-2", "duration_s": 7, "tags": "irrigation, leak, water"},
+  {"farm": "Green Acres", "asset": "North Herd", "date": "2026-06-28T19:55:00", "camera": "pasture-cam-4", "duration_s": 22, "tags": "calving, cow"}
+]

@@ -42,6 +42,7 @@ class Source(str, enum.Enum):
     csv_partner = "csv_partner"
     dropbox = "dropbox"
     whatsapp = "whatsapp"
+    media = "media"
     manual = "manual"
 
 
@@ -105,6 +106,8 @@ class Event(Base):
     value: Mapped[float | None] = mapped_column(Float, nullable=True)
     author: Mapped[str | None] = mapped_column(String(200), nullable=True)
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Comma-separated tags (e.g. from video/clip analysis) used to drive workflow.
+    tags: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     asset: Mapped[Asset] = relationship(back_populates="events")
@@ -130,6 +133,9 @@ class ActionItem(Base):
         Enum(ActionStatus), default=ActionStatus.open, index=True
     )
     source_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Provenance for the action-item log: which agent produced it and why.
+    created_by: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime, default=lambda: dt.datetime.now(dt.timezone.utc)
     )

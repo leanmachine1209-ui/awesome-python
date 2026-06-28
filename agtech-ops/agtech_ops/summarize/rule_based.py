@@ -75,19 +75,24 @@ class RuleBasedSummarizer:
                 by_asset[e.asset.name] += 1
 
             haystack = " ".join(
-                p for p in [e.text, e.category, e.metric] if p
+                p for p in [e.text, e.category, e.metric, e.tags] if p
             ).lower()
             if not haystack:
                 continue
 
             for pattern, verb, priority, lead in _COMPILED:
-                if not pattern.search(haystack):
+                match = pattern.search(haystack)
+                if not match:
                     continue
                 asset_name = e.asset.name if e.asset else None
                 detail = (e.text or e.category or e.metric or "").strip()
                 task = f"{verb} — {asset_name or 'farm'}"
                 if detail:
                     task += f": {detail[:160]}"
+                trigger = match.group(0)
+                rationale = f"Triggered by '{trigger}' from {e.source.value}"
+                if e.tags:
+                    rationale += f" (tags: {e.tags})"
                 action_items.append(
                     ActionItemOut(
                         task=task,
@@ -95,6 +100,7 @@ class RuleBasedSummarizer:
                         due=today + dt.timedelta(days=lead),
                         priority=priority,
                         asset=asset_name,
+                        rationale=rationale,
                     )
                 )
                 flagged += 1

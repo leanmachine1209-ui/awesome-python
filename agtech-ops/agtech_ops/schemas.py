@@ -22,6 +22,7 @@ class EventIn(BaseModel):
     value: float | None = None
     author: str | None = None
     text: str | None = None
+    tags: list[str] = Field(default_factory=list)
     raw: str | None = None
 
     @field_validator("farm", "asset")
@@ -39,6 +40,9 @@ class ActionItemOut(BaseModel):
     due: dt.date | None = Field(None, description="Suggested due date if implied.")
     priority: Priority = Priority.medium
     asset: str | None = Field(None, description="Asset name this relates to.")
+    rationale: str | None = Field(
+        None, description="Short reason/evidence this action was raised."
+    )
 
 
 class SummaryResult(BaseModel):
@@ -82,6 +86,11 @@ class MetricPoint(BaseModel):
     value: float
 
 
+class TagCount(BaseModel):
+    tag: str
+    count: int
+
+
 class AggregateReport(BaseModel):
     """Compiled, cross-source view of everything ingested."""
 
@@ -89,7 +98,9 @@ class AggregateReport(BaseModel):
     total_farms: int
     total_assets: int
     open_action_items: int
+    media_clips: int = 0
     by_source: dict[str, int] = Field(default_factory=dict)
     by_asset: list[AssetSummary] = Field(default_factory=list)
     metric_series: dict[str, list[MetricPoint]] = Field(default_factory=dict)
+    top_tags: list[TagCount] = Field(default_factory=list)
     date_range: list[dt.datetime | None] = Field(default_factory=list)

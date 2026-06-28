@@ -14,6 +14,7 @@ from __future__ import annotations
 import datetime as dt
 import io
 import json
+import re
 
 import pandas as pd
 
@@ -48,9 +49,36 @@ _COLUMN_ALIASES = {
     "note": "notes",
     "comment": "notes",
     "comments": "notes",
+    "description": "notes",
+    # Video / clip metadata (tags drive workflow).
+    "tags": "tags",
+    "tag": "tags",
+    "labels": "tags",
+    "detections": "tags",
+    "duration": "duration_s",
+    "duration_s": "duration_s",
+    "length": "duration_s",
+    "camera": "camera",
+    "cam": "camera",
+    "clip": "clip",
+    "clip_id": "clip",
+    "video": "clip",
+    "filename": "clip",
 }
 
 _REQUIRED = {"farm", "asset", "date"}
+# Presence of any of these implies the rows are video/clip metadata.
+_MEDIA_COLUMNS = {"tags", "duration_s", "camera", "clip"}
+
+
+def _split_tags(raw: object) -> list[str]:
+    if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+        return []
+    if isinstance(raw, (list, tuple)):
+        items = raw
+    else:
+        items = re.split(r"[;,|]", str(raw))
+    return [t.strip() for t in items if str(t).strip()]
 
 
 def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -113,8 +141,17 @@ def dataframe_to_events(
     if missing:
         return [], [f"missing required column(s): {', '.join(sorted(missing))}"]
 
-    known = {"farm", "asset", "asset_type", "date", "category", "metric", "value", "notes"}
+    known = {
+        "farm", "asset", "asset_type", "date", "category", "metric", "value",
+        "notes", "tags", "duration_s", "camera", "clip",
+    }
     extra_cols = [c for c in df.columns if c not in known]
+
+    # Clip-metadata tables (tags/duration/camera/clip) are auto-tagged as media
+    # unless the caller explicitly asked for a different source.
+    is_media = bool(_MEDIA_COLUMNS & set(df.columns))
+    if is_media and source is Source.csv_partner:
+        source = Source.media
 
     events: list[EventIn] = []
     for idx, row in df.iterrows():
@@ -134,6 +171,22 @@ def dataframe_to_events(
             else:
                 value = None
 
+            tags = _split_tags(row.get("tags"))
+
+            # Clip duration becomes a numeric metric so it aggregates like data.
+            metric = _clean(row.get("metric"))
+            duration = row.get("duration_s")
+            if metric is None and duration is not None and not pd.isna(duration):
+                try:
+                    value = float(duration)
+                    metric = "clip_duration_s"
+                except (TypeError, ValueError):
+                    pass
+
+            text = _clean(row.get("notes"))
+            if text is None and tags:
+                text = "Clip tagged: " + ", ".join(tags)
+
             raw_extra = {c: _jsonable(row.get(c)) for c in extra_cols}
 
             events.append(
@@ -145,10 +198,13 @@ def dataframe_to_events(
                     occurred_at=occurred_at.to_pydatetime()
                     if hasattr(occurred_at, "to_pydatetime")
                     else dt.datetime.fromisoformat(str(occurred_at)),
-                    category=_clean(row.get("category")),
-                    metric=_clean(row.get("metric")),
+                    category=_clean(row.get("category"))
+                    or ("media" if is_media else None),
+                    metric=metric,
                     value=value,
-                    text=_clean(row.get("notes")),
+                    author=_clean(row.get("camera")),
+                    text=text,
+                    tags=tags,
                     raw=json.dumps(raw_extra) if raw_extra else None,
                 )
             )

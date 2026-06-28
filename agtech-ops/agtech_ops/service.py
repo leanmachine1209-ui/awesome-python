@@ -23,6 +23,7 @@ from .schemas import (
     IngestResult,
     MetricPoint,
     SummaryResult,
+    TagCount,
 )
 from .summarize import get_summarizer
 
@@ -48,6 +49,7 @@ def store_events(events: list[EventIn], errors: list[str] | None = None) -> Inge
                     value=ev.value,
                     author=ev.author,
                     text=ev.text,
+                    tags=",".join(ev.tags) if ev.tags else None,
                     raw=ev.raw,
                 )
             )
@@ -131,12 +133,20 @@ def aggregate(farm: str | None = None) -> AggregateReport:
         by_source: dict[str, int] = {}
         per_asset: dict[tuple[str, str], dict] = {}
         metric_series: dict[str, list[MetricPoint]] = {}
+        tag_counts: dict[str, int] = {}
+        media_clips = 0
         min_dt = max_dt = None
 
         for e in events:
             by_source[e.source.value] = by_source.get(e.source.value, 0) + 1
             min_dt = e.occurred_at if min_dt is None else min(min_dt, e.occurred_at)
             max_dt = e.occurred_at if max_dt is None else max(max_dt, e.occurred_at)
+
+            if e.source is Source.media:
+                media_clips += 1
+            if e.tags:
+                for tag in (t.strip() for t in e.tags.split(",") if t.strip()):
+                    tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
             if e.asset:
                 key = (e.asset.farm.name, e.asset.name)
@@ -177,15 +187,21 @@ def aggregate(farm: str | None = None) -> AggregateReport:
             key=lambda a: a.events,
             reverse=True,
         )
+        top_tags = [
+            TagCount(tag=t, count=c)
+            for t, c in sorted(tag_counts.items(), key=lambda kv: kv[1], reverse=True)
+        ]
 
         return AggregateReport(
             total_events=total_events,
             total_farms=len(farms),
             total_assets=len(assets),
             open_action_items=int(open_items or 0),
+            media_clips=media_clips,
             by_source=by_source,
             by_asset=by_asset,
             metric_series=metric_series,
+            top_tags=top_tags,
             date_range=[min_dt, max_dt],
         )
 
@@ -250,6 +266,8 @@ def summarize_and_store(
                         due=dt.datetime.combine(ai.due, dt.time()) if ai.due else None,
                         priority=ai.priority,
                         source_summary=result.summary,
+                        created_by=summarizer.name,
+                        rationale=ai.rationale,
                     )
                 )
     return result
@@ -273,6 +291,9 @@ def list_action_items(
                 "due": a.due.date().isoformat() if a.due else None,
                 "priority": a.priority.value,
                 "status": a.status.value,
+                "created_by": a.created_by,
+                "rationale": a.rationale,
+                "logged_at": a.created_at.isoformat() if a.created_at else None,
             }
             for a in items
         ]

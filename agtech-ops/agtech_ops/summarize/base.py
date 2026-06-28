@@ -16,6 +16,8 @@ def render_events(events: list[Event]) -> str:
         asset = e.asset.name if e.asset else "?"
         farm = e.asset.farm.name if e.asset and e.asset.farm else "?"
         prefix = f"[{when}] {farm} / {asset} ({e.source.value})"
+        if e.tags:
+            lines.append(f"{prefix} tags: {e.tags}")
         if e.text:
             who = f" {e.author}:" if e.author else ""
             lines.append(f"{prefix}{who} {e.text}")
