@@ -26,6 +26,13 @@ end-to-end with zero external services or API keys required.
   e.g. YOLO on a Jetson) with `tags`, `duration`, `camera` columns is
   auto-detected and ingested as `media` events. Tags become **workflow signals**
   and feed action generation (a clip tagged `lame` raises a vet task).
+- **Alibi Vigilant camera feeds** — `EventNotificationAlert` JSON from Alibi
+  Vigilant NVRs/cameras (the ISAPI/Hikvision event shape used by their live
+  `/ISAPI/Event/notification/alertStream` and exported event logs) is
+  auto-detected and ingested as `media` events. The camera/channel resolves onto
+  a farm asset and the ISAPI `eventType` maps to workflow tags — e.g. perimeter
+  detections (`linedetection`, `fielddetection`, region entry/exit) raise a
+  `fence` containment task.
 - **Compile & aggregate** — a cross-source roll-up: totals, per-source and
   per-asset counts, **top tags**, clip counts, and numeric metric **time series**
   assembled from every file (e.g. milk yield from a CSV + a JSON partner feed).
@@ -63,11 +70,13 @@ pip install -e ".[dev,files]"        # core + tests + Excel/PDF/Word support
 # Run the API
 uvicorn agtech_ops.api:app --reload
 
-# Ingest a range of files at once (incl. video/clip tag metadata)
+# Ingest a range of files at once (incl. video/clip tag metadata and
+# Alibi Vigilant camera event feeds)
 curl -F "files=@sample_data/herd.csv" \
      -F "files=@sample_data/partner_feed.json" \
      -F "files=@sample_data/field_notes.txt" \
      -F "files=@sample_data/clips.json" \
+     -F "files=@sample_data/alibi_vigilant_events.json" \
      -F "farm=Green Acres" \
      http://localhost:8000/ingest/files
 
