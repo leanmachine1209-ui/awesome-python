@@ -1,0 +1,7 @@
+[
+  {"EventNotificationAlert": {"channelID": "2", "channelName": "South Field Gate", "dateTime": "2026-06-29T02:14:07+00:00", "activePostCount": 1, "eventType": "linedetection", "eventState": "active", "eventDescription": "Line crossing detected on the South Field gate perimeter"}},
+  {"EventNotificationAlert": {"channelID": "1", "channelName": "North Herd Barn", "dateTime": "2026-06-29T03:40:22+00:00", "activePostCount": 1, "eventType": "fielddetection", "eventState": "active", "eventDescription": "Intrusion detected in the North Herd holding area"}},
+  {"EventNotificationAlert": {"channelID": "1", "channelName": "North Herd Barn", "dateTime": "2026-06-29T05:05:10+00:00", "activePostCount": 1, "eventType": "VMD", "eventState": "active", "eventDescription": "Motion detected overnight"}},
+  {"EventNotificationAlert": {"channelID": "3", "channelName": "Feed Store Dock", "dateTime": "2026-06-29T06:12:55+00:00", "activePostCount": 1, "eventType": "tamperdetection", "eventState": "active", "eventDescription": "Camera tampering detected at the Feed Store dock"}},
+  {"EventNotificationAlert": {"channelID": "2", "channelName": "South Field Gate", "dateTime": "2026-06-29T18:47:33+00:00", "activePostCount": 1, "eventType": "videoloss", "eventState": "active", "eventDescription": "Video signal lost on the South Field gate camera"}}
+]

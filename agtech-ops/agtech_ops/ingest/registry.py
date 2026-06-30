@@ -4,6 +4,8 @@ Supported today:
   - Tabular:   .csv, .tsv, .xlsx, .xls, .json
   - Free text: .txt, .md, .log, .pdf, .docx
 WhatsApp exports (.txt) are auto-detected and routed to the chat parser.
+Alibi Vigilant / ISAPI camera event feeds (.json) are auto-detected and routed
+to the camera-event parser.
 
 Tabular files carry their own farm/asset columns. Free-text files do not, so a
 ``farm`` (and optional known asset list) is supplied for context resolution.
@@ -15,6 +17,7 @@ import os
 
 from ..models import Source
 from ..schemas import EventIn
+from .alibi_ingest import looks_like_alibi, parse_alibi_vigilant_events
 from .csv_ingest import parse_partner_csv
 from .tabular_ingest import parse_excel, parse_json_records
 from .text_ingest import (
@@ -58,6 +61,14 @@ def ingest_file(
     if ext in {".xlsx", ".xls"}:
         return parse_excel(data)
     if ext == ".json":
+        # Alibi Vigilant / ISAPI camera event feeds are device-centric (no
+        # farm/asset columns), so detect them and route to the dedicated parser.
+        if looks_like_alibi(data):
+            if not farm:
+                return [], [f"{filename}: a farm name is required for Alibi Vigilant event feeds"]
+            return parse_alibi_vigilant_events(
+                data, farm=farm, known_assets=known_assets, default_asset=default_asset
+            )
         return parse_json_records(data)
 
     # --- Free text (needs a farm for context) ---
